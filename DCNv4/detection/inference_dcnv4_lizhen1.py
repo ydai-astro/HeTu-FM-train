@@ -7,6 +7,7 @@ import mmdet_custom
 import mmcv_custom
 
 import json
+import glob
 import numpy as np
 from pycocotools import mask as mask_utils
 
@@ -86,41 +87,32 @@ def parse_args():
 
 def main():
     args = parse_args()
-    input_filename = args.input
+    input_dir = args.input
+    output_dir = os.path.join(os.getcwd(), "results")
+
+    os.makedirs(output_dir, exist_ok=True)
 
     # 模型配置文件路径
     config_path = "work_dirs/mask2/mask2.py"
     # 模型权重文件路径
     checkpoint = "work_dirs/mask2/best_bbox_mAP_epoch_24.pth"
 
-    # 输入图片路径
-    # img_path = f"20147/{input_filename}"
-    # 输出目录
-    output_dir = f"/inspire/qb-ilm/project/qproject-assement/zhangkaipeng-24043/ast/results/{input_filename}/"
-    os.makedirs(output_dir, exist_ok=True)
-
     # 初始化检测模型
     model = init_detector(config_path, checkpoint, device="cuda:0")
 
-    # 处理批量图片
-    # imgs = sorted([os.path.join(img_path, img) for img in os.listdir(img_path) if img.endswith(".png")])
-
     # 逐张图片推理
-    for img in ["/inspire/qb-ilm/project/qproject-assement/zhangkaipeng-24043/ast/lin.cmap11.0/SB20147_component_1a.png"]:
-        result = inference_detector(model, img)
+    for img in glob.glob(os.path.join(input_dir, "*.png")):
+        output_file, output_json = (
+            os.path.join(output_dir, os.path.basename(img)), 
+            os.path.join(output_dir, os.path.splitext(os.path.basename(img))[0] + ".json")
+        )
 
-        a, b = result
-        # print(a.type)
-        # print(b.type)
-        # print(a)
-        # print(b)
-        output_file = os.path.join(output_dir, os.path.basename(img))
+        result = inference_detector(model, img)
+        
         # 保存推理结果
         model.show_result(img, result, out_file=output_file)
-        with open(os.path.join(output_dir, os.path.splitext(os.path.basename(img))[0] + ".json"), "w") as f:
+        with open(output_json, "w") as f:
             json.dump(mmdet_result_to_custom(result, score_thr=0.5), f)
-        break
-
 
 if __name__ == "__main__":
     main()
