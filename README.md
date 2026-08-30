@@ -1,338 +1,274 @@
-# HeTu-FM: Training Framework for Survey-Scale Radio Source Identification and Classification
+# HeTu-FM-train
 
-**HeTu-FM** is an AI-for-Science framework developed for automated radio-source identification, instance segmentation, and morphological classification in large-area radio surveys.
+Training code for **HeTu-FM**, a foundation-model-based framework for radio-source identification, instance segmentation, and morphological classification.
 
-This repository contains the **training and model adaptation components** of HeTu-FM. The framework is designed to bridge modern visual foundation models and survey-scale radio astronomy, enabling complex radio structures to be transformed from image-level detections into scientifically usable source representations.
+HeTu-FM is developed for large-scale radio astronomical surveys and is currently applied to radio-source analysis using data from the **Rapid ASKAP Continuum Survey at 1367.5 MHz (RACS-mid)**.
 
-The current HeTu-FM project is primarily developed and validated using data from the **Rapid ASKAP Continuum Survey at 1367.5 MHz (RACS-mid)**.
-
-> **Paper:**
+> **Paper**
 > *HeTu-FM: A Foundation-Model-Based Framework for Radio Galaxy Identification and Classification at Survey Scale*
 > Yao Dai et al.
 > Submitted to *The Astrophysical Journal Supplement Series (ApJS)*.
 
 ---
 
-## 1. Scientific Motivation
+## Overview
 
-Next-generation radio surveys are rapidly increasing both the volume and complexity of astronomical imaging data.
+Large radio surveys contain a wide variety of compact and extended radio sources. Complex structures such as radio galaxies can be difficult to describe using traditional source-extraction methods alone.
 
-For extended radio sources, the scientific problem is substantially more difficult than simply determining whether an object is present in an image. A practical survey-scale system must simultaneously address:
+HeTu-FM applies modern computer-vision models to jointly perform:
 
-* identification of radio sources in complex backgrounds;
-* separation of spatially overlapping or extended emission;
-* morphological classification of radio galaxies;
-* reliable localization of individual radio components;
-* transfer of image-space predictions into celestial coordinates;
-* construction of source catalogues suitable for subsequent astrophysical analysis.
+* radio-source detection;
+* morphological classification;
+* instance segmentation;
+* source-level visual representation learning.
 
-Traditional source-extraction pipelines remain highly effective for many compact sources, but complex extended radio morphologies can be difficult to represent using predefined Gaussian components alone.
+This repository focuses on the **training and evaluation of the HeTu-FM visual model**.
 
-HeTu-FM therefore explores a complementary approach in which **large-scale visual representation learning and instance-level astronomical source analysis are integrated into a unified framework**.
-
-The broader goal is to move computer vision in radio astronomy from
-
-**image recognition**
-
-toward
-
-**survey-scale scientific catalogue construction and source discovery**.
+The downstream astronomical analysis pipeline is maintained separately.
 
 ---
 
-## 2. HeTu-FM Framework
+## Radio-source Classes
 
-HeTu-FM follows a **pretrain-and-adapt** paradigm for radio astronomical images.
+The current model is designed to identify four representative radio-source morphologies:
 
-The framework combines a modern hierarchical visual backbone with an instance-segmentation architecture so that source detection, morphological recognition, and spatial segmentation can be performed simultaneously.
+| Class | Description                         |
+| ----- | ----------------------------------- |
+| CS    | Compact Source                      |
+| CJ    | Core-Jet Source                     |
+| FR I  | Fanaroff–Riley Type I radio galaxy  |
+| FR II | Fanaroff–Riley Type II radio galaxy |
 
-The main pipeline can be summarized as:
+These classes contain both compact and extended radio structures and are used to evaluate the capability of the model to recognize complex radio morphology.
+
+---
+
+## Model
+
+HeTu-FM uses an instance-segmentation framework to simultaneously predict:
 
 ```text
-Radio Survey Images
+Input radio image
         │
         ▼
-Visual Representation Backbone
+Visual backbone
         │
         ▼
-Multi-scale Feature Representation
+Multi-scale image features
         │
         ▼
-Instance Detection & Segmentation
+Detection / Segmentation Head
         │
-        ├── Bounding Box
-        ├── Instance Mask
-        ├── Morphological Class
-        └── Confidence Score
-        │
-        ▼
-Astronomical Coordinate Reconstruction
-        │
-        ▼
-Source Measurement & Deduplication
-        │
-        ▼
-Scientific Catalogue
+        ├── Source class
+        ├── Bounding box
+        ├── Instance mask
+        └── Confidence score
 ```
 
-The current model uses a hierarchical **InternImage-family visual backbone with deformable convolution** together with a two-stage instance-segmentation framework.
+The model is designed to provide both morphological classification and spatial information for individual radio sources.
 
-The purpose of this design is not merely to improve image-level classification accuracy, but to obtain spatially resolved representations that can subsequently support astronomical measurement and catalogue construction.
-
----
-
-## 3. Radio Morphology Classes
-
-The current HeTu-FM training task focuses on four representative radio-source morphologies:
-
-| Class     | Description                         |
-| --------- | ----------------------------------- |
-| **CS**    | Compact Source                      |
-| **CJ**    | Core-Jet Source                     |
-| **FR I**  | Fanaroff–Riley Type I radio galaxy  |
-| **FR II** | Fanaroff–Riley Type II radio galaxy |
-
-These classes span compact, asymmetric, and extended double-lobed radio structures and therefore provide a useful benchmark for evaluating whether visual models can learn physically meaningful radio morphology.
+The resulting instance masks can subsequently be used by downstream astronomical analysis pipelines.
 
 ---
 
-## 4. Dataset
+## Dataset
 
-The primary training and validation data are constructed from **RACS-mid** observations obtained with the Australian Square Kilometre Array Pathfinder (ASKAP).
+The current HeTu-FM experiments are primarily based on **RACS-mid** radio continuum images obtained with the Australian Square Kilometre Array Pathfinder (ASKAP).
 
-RACS-mid provides wide-area radio continuum imaging at approximately 1.37 GHz and offers an important precursor dataset for developing automated analysis methods toward the SKA era.
+The training samples contain radio-source images and corresponding instance-level annotations.
 
-### Annotation
+Typical annotation information includes:
 
-HeTu-FM uses instance-level annotations containing:
+* source morphology class;
+* source bounding box;
+* instance segmentation mask.
 
-* source class;
-* bounding box;
-* instance segmentation mask;
-* image/source association.
+The original RACS-mid survey data are not redistributed in this repository.
 
-Segmentation annotations are generated through a combination of machine-assisted annotation and manual astronomical verification.
-
-The labelled dataset is used for supervised adaptation of the visual representation to radio-source morphology.
-
-### Data availability
-
-The original RACS-mid survey images are **not redistributed in this repository**.
-
-Users should obtain the survey data from the official RACS data release and prepare the training samples according to the corresponding HeTu-FM data-processing pipeline.
-
-RACS:
+RACS data can be obtained from the official survey resources:
 
 https://research.csiro.au/racs/
 
 ---
 
-## 5. Training Strategy
+## Dataset Structure
 
-The HeTu-FM training procedure is designed to transfer general visual representation capability to radio astronomical morphology.
-
-The major stages are:
+A typical dataset may be organized as:
 
 ```text
-Pre-trained visual representation
-              │
-              ▼
-Radio-domain dataset construction
-              │
-              ▼
-Instance-level source annotation
-              │
-              ▼
-Supervised radio-domain adaptation
-              │
-              ▼
-Detection + Segmentation + Classification
-              │
-              ▼
-Survey-scale inference
+dataset/
+├── train/
+│   ├── images/
+│   └── annotations/
+├── val/
+│   ├── images/
+│   └── annotations/
+└── test/
+    ├── images/
+    └── annotations/
 ```
 
-During radio-domain adaptation, the model jointly learns to recognize source morphology and recover the spatial extent of individual radio sources.
+The exact annotation format should follow the dataset configuration used by the training framework in this repository.
 
-This is important for HeTu because the instance mask is subsequently used not only as a computer-vision prediction, but also as an interface to downstream astronomical operations such as:
+---
 
-* celestial-coordinate reconstruction;
-* radio flux-density measurement;
-* source-size estimation;
-* catalogue cross-matching;
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/ydai-astro/HeTu-FM-train.git
+cd HeTu-FM-train
+```
+
+Create an isolated Python environment before installing the required packages.
+
+For example:
+
+```bash
+conda create -n hetufm python=3.10
+conda activate hetufm
+```
+
+Then install the dependencies required by the training framework.
+
+```bash
+pip install -r requirements.txt
+```
+
+If the repository uses a different environment file, please follow the corresponding dependency configuration included in the project.
+
+---
+
+## Training
+
+Before training, configure:
+
+* training dataset path;
+* validation dataset path;
+* number of morphology classes;
+* pretrained model weights;
+* output directory;
+* training hyperparameters.
+
+A typical training procedure is:
+
+```bash
+python <training_script.py> <config_file>
+```
+
+Replace the command above with the corresponding training script and configuration file included in this repository.
+
+Training outputs generally include:
+
+```text
+outputs/
+├── checkpoints/
+├── logs/
+└── evaluation_results/
+```
+
+---
+
+## Evaluation
+
+The trained model can be evaluated on an independent validation or test dataset.
+
+The model produces source-level predictions including:
+
+```text
+class label
+confidence score
+bounding box
+instance mask
+```
+
+Evaluation can therefore consider several complementary aspects:
+
+* source detection performance;
+* morphology classification performance;
+* instance-segmentation performance.
+
+For astronomical applications, performance should also be inspected across sources with different morphology, signal-to-noise ratio, angular scale, and image complexity.
+
+---
+
+## Inference Output
+
+For an input radio image, HeTu-FM produces instance-level predictions:
+
+```text
+Radio image
+    │
+    ▼
+HeTu-FM
+    │
+    ├── class
+    ├── score
+    ├── bounding box
+    └── segmentation mask
+```
+
+These outputs provide the interface between the machine-learning model and subsequent astronomical analysis.
+
+---
+
+## Downstream Scientific Analysis
+
+This repository focuses only on **HeTu-FM model training and evaluation**.
+
+Operations such as:
+
+* WCS-based celestial-coordinate reconstruction;
+* astronomical source measurement;
+* survey-scale catalogue construction;
 * duplicate-source removal;
-* unusual-source candidate selection.
+* catalogue cross-matching;
+* statistical and astrophysical analysis;
 
----
+belong to the downstream HeTu scientific-analysis workflow and are **not part of this training repository**.
 
-## 6. Training Workflow
+The corresponding code is available at:
 
-A typical HeTu-FM experiment contains the following stages.
-
-### Step 1 — Prepare RACS-mid data
-
-Download the required RACS-mid observations and generate radio-source image samples.
-
-The corresponding FITS/WCS information should be retained because celestial-coordinate reconstruction is required during the downstream scientific analysis.
-
-### Step 2 — Prepare annotations
-
-Each training source should contain the information required for instance segmentation and morphology classification, including:
-
-```text
-image
- ├── source class
- ├── bounding box
- └── instance mask
-```
-
-### Step 3 — Configure the model
-
-Select the visual backbone, initialization weights, number of morphology classes, training dataset, validation dataset, and optimization settings.
-
-### Step 4 — Train / fine-tune
-
-Run the corresponding training configuration contained in this repository.
-
-> The exact command and configuration path will be documented here according to the final public repository structure.
-
-### Step 5 — Evaluate
-
-Evaluate the trained model on an independent validation/test set using detection, classification, and segmentation metrics.
-
-For scientific applications, model performance should additionally be examined as a function of observational properties such as source morphology, signal-to-noise ratio, angular scale, and background complexity.
-
----
-
-## 7. From Machine Learning to Scientific Catalogue Construction
-
-The neural-network output represents only the first stage of the complete HeTu-FM scientific workflow.
-
-The downstream HeTu pipeline further converts model predictions into astronomical measurements:
-
-```text
-HeTu-FM inference
-      │
-      ▼
-Instance masks
-      │
-      ▼
-WCS coordinate reconstruction
-      │
-      ▼
-AI + Physics source measurement
-      │
-      ▼
-Global celestial-coordinate deduplication
-      │
-      ▼
-Catalogue cross-matching
-      │
-      ▼
-Radio-source catalogue
-      │
-      ▼
-Rare / unusual source discovery
-```
-
-This separation between **model training** and **scientific analysis** is intentional.
-
-This repository focuses on learning robust radio-source representations, whereas astronomical catalogue construction and physical analysis are maintained separately.
-
----
-
-## 8. Downstream Scientific Analysis
-
-The downstream HeTu-FM catalogue-construction and scientific-analysis code is available at:
-
-**HeTu-FM Scientific Analysis**
+### HeTu-FM Scientific Analysis
 
 https://github.com/ydai-astro/HeTu-Foundation-Model-scientific-analysis
 
-That repository includes components associated with:
-
-* survey-scale source processing;
-* WCS-based localization;
-* source catalogue generation;
-* astronomical parameter measurement;
-* catalogue cross-matching;
-* statistical analysis of the resulting source population.
-
-Together, the two repositories form the current HeTu-FM workflow:
+The relationship between the two repositories is:
 
 ```text
 HeTu-FM-train
       │
       │ model training
-      │
       ▼
-trained HeTu-FM model
+trained model
       │
       │ survey inference
       ▼
 HeTu-FM scientific analysis
       │
       ▼
-radio-source catalogue
-      │
-      ▼
-astrophysical analysis
+astronomical source catalogue
 ```
 
 ---
 
-## 9. Research Scope
+## Research Goal
 
-HeTu-FM is being developed as part of a broader effort toward scalable AI-assisted radio astronomy.
+The goal of HeTu-FM is to investigate how modern visual models can support the automated interpretation of large radio surveys.
 
-Current research directions include:
+Rather than treating radio-source analysis only as an image-classification problem, HeTu-FM aims to provide instance-level representations that can be connected to subsequent astronomical measurements and scientific analysis.
 
-* radio visual foundation models;
-* survey-scale instance segmentation;
-* robust extended-source localization;
-* physically constrained source measurement;
-* morphology-aware catalogue construction;
-* low-surface-brightness source recovery;
-* anomalous and rare radio-source discovery;
-* cross-survey transfer and generalization;
-* intelligent astronomical data-processing pipelines.
-
-An important long-term objective is to develop transferable AI infrastructure capable of supporting the much larger data volumes expected from the **Square Kilometre Array (SKA)**.
+This training repository provides the machine-learning component of that workflow.
 
 ---
 
-## 10. HeTu Research Ecosystem
+## Citation
 
-HeTu is evolving from an astronomical object-detection system toward a broader AI-for-Science framework for radio-survey analysis.
-
-```text
-HeTu
- │
- ├── Radio-source detection
- │
- ├── Instance segmentation
- │
- ├── Morphological classification
- │
- ├── Foundation-model representation
- │
- ├── Physical source measurement
- │
- ├── Survey-scale catalogue construction
- │
- └── Rare-source discovery
-```
-
-Related work also explores the recovery and identification of Galactic supernova remnants using context-expanded radio-source representations and visual foundation models.
-
----
-
-## 11. Citation
-
-If this repository contributes to your research, please cite the corresponding HeTu-FM paper.
+If this repository is useful for your research, please cite:
 
 ```bibtex
-@article{dai_hetufm,
+@article{dai2026hetufm,
   author  = {Dai, Yao and others},
   title   = {HeTu-FM: A Foundation-Model-Based Framework for Radio Galaxy Identification and Classification at Survey Scale},
   journal = {The Astrophysical Journal Supplement Series},
@@ -340,21 +276,11 @@ If this repository contributes to your research, please cite the corresponding H
 }
 ```
 
-The BibTeX information will be updated after publication.
+The citation information will be updated after publication.
 
 ---
 
-## 12. Acknowledgements
-
-This project makes use of radio continuum observations from the **Rapid ASKAP Continuum Survey (RACS)**.
-
-ASKAP is part of the Australia Telescope National Facility and is operated by CSIRO.
-
-We also acknowledge the open-source computer-vision and astronomical software communities whose tools support the development of the HeTu framework.
-
----
-
-## 13. Contact
+## Contact
 
 **Yao Dai**
 
@@ -363,4 +289,4 @@ Shanghai Astronomical Observatory, Chinese Academy of Sciences
 GitHub:
 https://github.com/ydai-astro
 
-For questions related to HeTu-FM training, astronomical applications, or collaboration, please open an issue in this repository.
+For questions about the HeTu-FM training framework, please open an issue in this repository.
